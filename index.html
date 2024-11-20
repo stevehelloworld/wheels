@@ -23,6 +23,7 @@
             position: relative;
             transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
             cursor: pointer;
+            border: 1px solid #ccc;
         }
         
         #pointer {
@@ -70,119 +71,188 @@
             padding: 10px 20px;
             cursor: pointer;
         }
+        
+        .name-input {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        #resultPopup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="wheel-container">
             <div id="pointer"></div>
-            <canvas id="wheel"></canvas>
+            <canvas id="wheel" width="400" height="400"></canvas>
         </div>
         <div class="names-panel">
             <h3>參與者名單</h3>
-            <textarea id="nameList" placeholder="每行輸入一個名字"></textarea>
-            <button onclick="updateWheel()">更新名單</button>
+            <div class="name-input">
+                <textarea id="nameList" rows="10" cols="30"></textarea>
+                <button onclick="updateWheel()">更新名單</button>
+            </div>
         </div>
-    </div>
-    <div id="resultPopup" class="popup">
-        <div class="popup-content">
-            恭喜 <span id="winner"></span> 被選中！
+        <div id="resultPopup" style="display: none;">
+            <p>抽中的是：<span id="winner"></span></p>
+            <button onclick="document.getElementById('resultPopup').style.display='none'">關閉</button>
         </div>
-        <button onclick="closePopup()">確定</button>
     </div>
     <script>
-        let names = ['小明', '小華', '小美', '小強'];
+        let names = ['小明', '小華', '小菁', '小美', '小龍'];
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A4EB'];
         let spinning = false;
-        const canvas = document.getElementById('wheel');
-        const ctx = canvas.getContext('2d');
+        let currentWheelRotation = 0;
+        let mouseX = 0;
+        let mouseY = 0;
         
-        function updateWheel() {
-            const nameList = document.getElementById('nameList').value;
-            names = nameList.split('\n').filter(name => name.trim() !== '');
-            
-            const wheel = document.getElementById('wheel');
-            wheel.style.transition = 'none';
-            wheel.style.transform = 'rotate(0deg)';
-            
-            wheel.offsetHeight;
-            
-            wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
-            
-            drawWheel();
-            updateNameAngles();
-        }
+        // 追蹤累積的旋轉角度
+        let accumulatedRotation = 0;
+        
+        // 新增一個變數來儲存最新的角度區間資料
+        let currentSliceAngles = [];
         
         function drawWheel() {
+            const canvas = document.getElementById('wheel');
+            if (!canvas) {
+                console.error('找不到 canvas 元素');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            const radius = Math.min(centerX, centerY);
-            
+            const radius = Math.min(centerX, centerY) - 10;
+            const sliceAngle = (Math.PI * 2) / names.length;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            const sliceAngle = (2 * Math.PI) / names.length;
-            
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = 'rgba(0,0,0,0.2)';
-            
+
             names.forEach((name, i) => {
                 ctx.beginPath();
                 ctx.moveTo(centerX, centerY);
-                const startAngle = -Math.PI/2 + i * sliceAngle;
+                const startAngle = i * sliceAngle;
                 const endAngle = startAngle + sliceAngle;
                 ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-                ctx.closePath();
-                
-                const gradient = ctx.createRadialGradient(
-                    centerX, centerY, 0,
-                    centerX, centerY, radius
-                );
-                const baseColor = `hsl(${(360 / names.length) * i}, 70%, 70%)`;
-                gradient.addColorStop(0, 'white');
-                gradient.addColorStop(0.3, baseColor);
-                gradient.addColorStop(1, baseColor);
-                
-                ctx.fillStyle = gradient;
+                ctx.lineTo(centerX, centerY);
+                ctx.fillStyle = colors[i % colors.length];
                 ctx.fill();
-                
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                ctx.lineWidth = 2;
                 ctx.stroke();
-                
+
                 ctx.save();
                 ctx.translate(centerX, centerY);
-                ctx.rotate(startAngle + sliceAngle / 2);
+                const textAngle = startAngle + sliceAngle / 2;
+                ctx.rotate(textAngle);
                 ctx.textAlign = 'right';
-                ctx.fillStyle = 'black';
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'white';
                 ctx.font = 'bold 16px Arial';
-                ctx.fillText(name, radius - 20, 0);
+                ctx.fillText(name, radius - 20, 5);
                 ctx.restore();
             });
-            
+
             ctx.beginPath();
-            ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
-            ctx.fillStyle = '#333';
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = 'black';
             ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
         }
+        
+        function updateWheel() {
+            const nameList = document.getElementById('nameList');
+            if (!nameList) {
+                console.error('找不到 nameList 元素');
+                return;
+            }
+
+            names = nameList.value.split('\n').filter(name => name.trim() !== '');
+            
+            const wheel = document.getElementById('wheel');
+            if (wheel) {
+                wheel.style.transition = 'none';
+                wheel.style.transform = 'rotate(0deg)';
+                wheel.offsetHeight;
+                wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            }
+            
+            // 重置累積角度
+            accumulatedRotation = 0;
+            
+            // 更新角度區間資料
+            updateSliceAngles();
+            
+            drawWheel();
+            updateWheelState();
+        }
+        
+        window.onload = function() {
+            const wheel = document.getElementById('wheel');
+            if (wheel) {
+                wheel.width = 400;
+                wheel.height = 400;
+                wheel.style.transform = 'rotate(0deg)';
+            }
+
+            const nameList = document.getElementById('nameList');
+            if (nameList) {
+                nameList.value = names.join('\n');
+            }
+
+            // 初始化角度區間資料
+            updateSliceAngles();
+            
+            drawWheel();
+            initializeWheel();
+            updateWheelState();
+        };
         
         let monitorInterval;
         
-        function getCurrentWinner() {
-            const wheel = document.getElementById('wheel');
-            const currentRotation = wheel.style.transform ?
-                parseInt(wheel.style.transform.replace('rotate(', '').replace('deg)', '')) : 0;
-            
-            const normalizedRotation = (currentRotation + 90) % 360;
-            const sliceAngle = 360 / names.length;
-            const winnerIndex = (names.length - Math.floor(normalizedRotation / sliceAngle)) % names.length;
-            return names[winnerIndex];
+        function normalizeAngle(angle) {
+            return ((angle % 360) + 360) % 360;
         }
         
-        let mouseX = 0;
-        let mouseY = 0;
+        function getSliceAngles() {
+            const sliceAngle = 360 / names.length;
+            return names.map((name, index) => {
+                const startAngle = normalizeAngle(index * sliceAngle);
+                const endAngle = normalizeAngle((index + 1) * sliceAngle);
+                return { name, startAngle, endAngle };
+            });
+        }
+        
+        function getCurrentRotation() {
+            // 獲取當前累積的旋轉角度
+            return accumulatedRotation;
+        }
+        
+        function getCurrentWinner() {
+            // 指針位置（正上方 = 270度）
+            const pointerAngle = 270;
+            
+            // 在當前角度區間中尋找包含指針位置的區塊
+            const winner = currentSliceAngles.find(slice => {
+                if (slice.startAngle > slice.endAngle) {
+                    // 處理跨越0度的情況
+                    return pointerAngle >= slice.startAngle || pointerAngle < slice.endAngle;
+                }
+                return pointerAngle >= slice.startAngle && pointerAngle < slice.endAngle;
+            });
+            
+            console.log('獲獎計算：');
+            console.log(`指針位置: ${pointerAngle}°`);
+            console.log(`獲獎區間: ${winner.startAngle.toFixed(2)}° - ${winner.endAngle.toFixed(2)}°`);
+            console.log(`獲獎者: ${winner.name}`);
+            
+            return winner.name;
+        }
         
         canvas.addEventListener('mousemove', (event) => {
             const rect = canvas.getBoundingClientRect();
@@ -190,11 +260,19 @@
             mouseY = event.clientY - rect.top - canvas.height / 2;
         });
         
+        function getMouseAngle() {
+            const canvas = document.getElementById('wheel');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const dx = mouseX - centerX;
+            const dy = mouseY - centerY;
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+            return normalizeAngle(angle);
+        }
+        
         function getMouseTargetName() {
-            let angle = Math.atan2(mouseY, mouseX) * 180 / Math.PI;
-            angle = (angle + 90 + 360) % 360;
+            const angle = getMouseAngle();
             const sliceAngle = 360 / names.length;
-            
             const targetIndex = Math.floor(angle / sliceAngle) % names.length;
             return names[targetIndex];
         }
@@ -235,34 +313,88 @@
             });
         }
         
-        function spinWheel(event) {
+        function cheatMode(targetName) {
+            const sliceAngle = 360 / names.length;
+            const targetIndex = names.indexOf(targetName);
+            if (targetIndex === -1) return null;
+            
+            // 計算目標區域的中心角度（考慮指針在270度）
+            const targetCenterAngle = targetIndex * sliceAngle;
+            // 需要旋轉到的角度 = 目標角度 - 270度（指針位置）
+            const targetRotation = normalizeAngle(targetCenterAngle - 270);
+            
+            // 基本旋轉圈數（5-7圈）
+            const baseRotation = (5 + Math.random() * 2) * 360;
+            
+            return baseRotation + targetRotation;
+        }
+        
+        function updateWheelState() {
+            const normalizedRotation = normalizeAngle(accumulatedRotation);
+            const angles = getSliceAngles();
+            
+            console.log('當前輪盤狀態：');
+            console.log(`累積旋轉角度: ${accumulatedRotation.toFixed(2)}°`);
+            console.log(`標準化角度: ${normalizedRotation.toFixed(2)}°`);
+            console.log('各區域實際角度範圍：');
+            
+            angles.forEach(({name, startAngle, endAngle}) => {
+                // 計算實際角度（考慮累積旋轉）
+                const actualStartAngle = normalizeAngle(startAngle + normalizedRotation);
+                const actualEndAngle = normalizeAngle(endAngle + normalizedRotation);
+                console.log(`${name}: ${actualStartAngle.toFixed(2)}° - ${actualEndAngle.toFixed(2)}°`);
+            });
+        }
+        
+        function spinWheel(event, cheatTarget = null) {
             if (spinning) return;
             
             spinning = true;
             const wheel = document.getElementById('wheel');
-            let rotation;
             
-            const currentRotation = wheel.style.transform ?
-                parseInt(wheel.style.transform.replace('rotate(', '').replace('deg)', '')) : 0;
+            // 計算基本旋轉圈數（5-7圈）
+            const baseRotation = (5 + Math.random() * 2) * 360;
             
-            wheel.style.transition = 'none';
-            wheel.style.transform = `rotate(${currentRotation % 360}deg)`;
+            let newRotation;
+            if (cheatTarget) {
+                // 作弊模式
+                const sliceAngle = 360 / names.length;
+                const targetIndex = names.indexOf(cheatTarget);
+                if (targetIndex !== -1) {
+                    // 計算目標角度（考慮指針在270度）
+                    const targetCenterAngle = targetIndex * sliceAngle;
+                    const targetRotation = normalizeAngle(targetCenterAngle - 270);
+                    newRotation = baseRotation + targetRotation;
+                } else {
+                    newRotation = baseRotation + Math.random() * 360;
+                }
+            } else {
+                newRotation = baseRotation + Math.random() * 360;
+            }
             
-            wheel.offsetHeight;
+            // 計算總旋轉角度
+            const totalRotation = accumulatedRotation + newRotation;
             
-            wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            // 設置旋轉動畫
+            wheel.style.transform = `rotate(${totalRotation}deg)`;
             
-            rotation = 1800 + Math.random() * 720 + Math.random() * 360;
-            
-            wheel.style.transform = `rotate(${rotation}deg)`;
-            
+            // 等待動畫完成
             setTimeout(() => {
+                spinning = false;
+                accumulatedRotation = totalRotation;
+                
+                // 更新角度區間資料
+                updateSliceAngles();
+                
+                // 獲取獲獎者
                 const winner = getCurrentWinner();
+                
+                // 顯示結果
                 document.getElementById('winner').textContent = winner;
                 document.getElementById('resultPopup').style.display = 'block';
-                spinning = false;
                 
-                updateNameAngles();
+                // 更新並顯示狀態
+                updateWheelState();
             }, 4000);
         }
         
@@ -274,14 +406,47 @@
         canvas.height = 400;
         canvas.addEventListener('click', spinWheel);
         
-        window.onload = function() {
+        function initializeWheel() {
             const wheel = document.getElementById('wheel');
-            wheel.style.transform = 'rotate(0deg)';
-            drawWheel();
-            document.getElementById('nameList').value = names.join('\n');
-            startMonitoring();
-            updateNameAngles();
-        };
+            if (!wheel) return;
+
+            wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            
+            wheel.addEventListener('click', spinWheel);
+        }
+        
+        const style = document.createElement('style');
+        style.textContent = `
+            #wheel {
+                cursor: pointer;
+                transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            }
+            #wheel:hover {
+                opacity: 0.9;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // 更新角度區間的函數
+        function updateSliceAngles() {
+            const normalizedRotation = normalizeAngle(accumulatedRotation);
+            const sliceAngle = 360 / names.length;
+            
+            currentSliceAngles = names.map((name, index) => {
+                const startAngle = normalizeAngle(index * sliceAngle + normalizedRotation);
+                const endAngle = normalizeAngle((index + 1) * sliceAngle + normalizedRotation);
+                return {
+                    name,
+                    startAngle,
+                    endAngle
+                };
+            });
+            
+            console.log('更新後的角度區間：');
+            currentSliceAngles.forEach(slice => {
+                console.log(`${slice.name}: ${slice.startAngle.toFixed(2)}° - ${slice.endAngle.toFixed(2)}°`);
+            });
+        }
     </script>
 </body>
 </html> 
