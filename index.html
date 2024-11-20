@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>抽獎輪盤</title>
+    <style>
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .wheel-container {
+            width: 400px;
+            height: 400px;
+            position: relative;
+        }
+        
+        #wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+            cursor: pointer;
+        }
+        
+        #pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 40px solid red;
+            z-index: 2;
+        }
+        
+        .names-panel {
+            flex: 1;
+        }
+        
+        #nameList {
+            width: 100%;
+            height: 300px;
+        }
+        
+        .popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        .popup-content {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .popup button {
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="wheel-container">
+            <div id="pointer"></div>
+            <canvas id="wheel"></canvas>
+        </div>
+        <div class="names-panel">
+            <h3>參與者名單</h3>
+            <textarea id="nameList" placeholder="每行輸入一個名字"></textarea>
+            <button onclick="updateWheel()">更新名單</button>
+        </div>
+    </div>
+    <div id="resultPopup" class="popup">
+        <div class="popup-content">
+            恭喜 <span id="winner"></span> 被選中！
+        </div>
+        <button onclick="closePopup()">確定</button>
+    </div>
+    <script>
+        let names = ['小明', '小華', '小美', '小強'];
+        let spinning = false;
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        
+        function updateWheel() {
+            const nameList = document.getElementById('nameList').value;
+            names = nameList.split('\n').filter(name => name.trim() !== '');
+            
+            const wheel = document.getElementById('wheel');
+            wheel.style.transition = 'none';
+            wheel.style.transform = 'rotate(0deg)';
+            
+            wheel.offsetHeight;
+            
+            wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            
+            drawWheel();
+            updateNameAngles();
+        }
+        
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY);
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const sliceAngle = (2 * Math.PI) / names.length;
+            
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(0,0,0,0.2)';
+            
+            names.forEach((name, i) => {
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                const startAngle = -Math.PI/2 + i * sliceAngle;
+                const endAngle = startAngle + sliceAngle;
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                
+                const gradient = ctx.createRadialGradient(
+                    centerX, centerY, 0,
+                    centerX, centerY, radius
+                );
+                const baseColor = `hsl(${(360 / names.length) * i}, 70%, 70%)`;
+                gradient.addColorStop(0, 'white');
+                gradient.addColorStop(0.3, baseColor);
+                gradient.addColorStop(1, baseColor);
+                
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + sliceAngle / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'black';
+                ctx.shadowBlur = 0;
+                ctx.font = 'bold 16px Arial';
+                ctx.fillText(name, radius - 20, 0);
+                ctx.restore();
+            });
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 15, 0, Math.PI * 2);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        let monitorInterval;
+        
+        function getCurrentWinner() {
+            const wheel = document.getElementById('wheel');
+            const currentRotation = wheel.style.transform ?
+                parseInt(wheel.style.transform.replace('rotate(', '').replace('deg)', '')) : 0;
+            
+            const normalizedRotation = (currentRotation + 90) % 360;
+            const sliceAngle = 360 / names.length;
+            const winnerIndex = (names.length - Math.floor(normalizedRotation / sliceAngle)) % names.length;
+            return names[winnerIndex];
+        }
+        
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        canvas.addEventListener('mousemove', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = event.clientX - rect.left - canvas.width / 2;
+            mouseY = event.clientY - rect.top - canvas.height / 2;
+        });
+        
+        function getMouseTargetName() {
+            let angle = Math.atan2(mouseY, mouseX) * 180 / Math.PI;
+            angle = (angle + 90 + 360) % 360;
+            const sliceAngle = 360 / names.length;
+            
+            const targetIndex = Math.floor(angle / sliceAngle) % names.length;
+            return names[targetIndex];
+        }
+        
+        function startMonitoring() {
+            if (monitorInterval) {
+                clearInterval(monitorInterval);
+            }
+            
+            monitorInterval = setInterval(() => {
+                const targetName = getMouseTargetName();
+                const angle = Math.atan2(mouseY, mouseX) * 180 / Math.PI;
+                const normalizedAngle = (angle + 90 + 360) % 360;
+                const sliceAngle = 360 / names.length;
+                
+                console.log(`滑鼠角度: ${normalizedAngle.toFixed(2)}°, 區塊大小: ${sliceAngle.toFixed(2)}°, 指向: ${targetName}`);
+            }, 1000);
+        }
+        
+        let nameAngles = [];
+        
+        function updateNameAngles() {
+            const sliceAngle = 360 / names.length;
+            
+            nameAngles = names.map((name, index) => {
+                const startAngle = (90 + index * sliceAngle + 360) % 360;
+                const endAngle = (startAngle + sliceAngle + 360) % 360;
+                return {
+                    name: name,
+                    startAngle: startAngle,
+                    endAngle: endAngle
+                };
+            });
+            
+            console.log('當前各區域角度範圍：');
+            nameAngles.forEach(({name, startAngle, endAngle}) => {
+                console.log(`${name}: ${startAngle.toFixed(2)}° - ${endAngle.toFixed(2)}°`);
+            });
+        }
+        
+        function spinWheel(event) {
+            if (spinning) return;
+            
+            spinning = true;
+            const wheel = document.getElementById('wheel');
+            let rotation;
+            
+            const currentRotation = wheel.style.transform ?
+                parseInt(wheel.style.transform.replace('rotate(', '').replace('deg)', '')) : 0;
+            
+            wheel.style.transition = 'none';
+            wheel.style.transform = `rotate(${currentRotation % 360}deg)`;
+            
+            wheel.offsetHeight;
+            
+            wheel.style.transition = 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+            
+            rotation = 1800 + Math.random() * 720 + Math.random() * 360;
+            
+            wheel.style.transform = `rotate(${rotation}deg)`;
+            
+            setTimeout(() => {
+                const winner = getCurrentWinner();
+                document.getElementById('winner').textContent = winner;
+                document.getElementById('resultPopup').style.display = 'block';
+                spinning = false;
+                
+                updateNameAngles();
+            }, 4000);
+        }
+        
+        function closePopup() {
+            document.getElementById('resultPopup').style.display = 'none';
+        }
+        
+        canvas.width = 400;
+        canvas.height = 400;
+        canvas.addEventListener('click', spinWheel);
+        
+        window.onload = function() {
+            const wheel = document.getElementById('wheel');
+            wheel.style.transform = 'rotate(0deg)';
+            drawWheel();
+            document.getElementById('nameList').value = names.join('\n');
+            startMonitoring();
+            updateNameAngles();
+        };
+    </script>
+</body>
+</html> 
