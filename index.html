@@ -88,6 +88,7 @@
             border: 1px solid #ccc;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+
     </style>
 </head>
 <body>
@@ -153,7 +154,7 @@
                 const textAngle = startAngle + sliceAngle / 2;
                 ctx.rotate(textAngle);
                 ctx.textAlign = 'right';
-                ctx.fillStyle = 'white';
+                ctx.fillStyle = '#000000';
                 ctx.font = 'bold 16px Arial';
                 ctx.fillText(name, radius - 20, 5);
                 ctx.restore();
