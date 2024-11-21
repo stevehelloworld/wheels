@@ -2,6 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>抽獎輪盤</title>
     <style>
         body {
@@ -11,6 +12,7 @@
         
         .container {
             display: flex;
+            flex-wrap: wrap;
             gap: 20px;
             padding: 20px;
             background-color: #16213e;
@@ -18,6 +20,7 @@
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
             max-width: 1200px;
             margin: 0 auto;
+            justify-content: center;
         }
         
         .logo-container {
@@ -69,7 +72,7 @@
         }
         
         .names-panel {
-            width: 400px;
+            width: 250px;
             background: #0f3460;
             padding: 20px;
             border-radius: 15px;
@@ -150,6 +153,92 @@
             transform: translateY(-2px);
         }
 
+        @media screen and (max-width: 1024px) {
+            .container {
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .logo-container {
+                width: 150px;
+            }
+            
+            .wheel-container {
+                width: 350px;
+                height: 350px;
+            }
+            
+            .names-panel {
+                width: 200px;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+                padding: 10px;
+            }
+            
+            .logo-container {
+                width: 120px;
+                margin-bottom: 10px;
+            }
+            
+            .wheel-container {
+                width: 300px;
+                height: 300px;
+            }
+            
+            .names-panel {
+                width: 300px;
+            }
+            
+            #nameList {
+                height: 200px;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .wheel-container {
+                width: 280px;
+                height: 280px;
+                padding: 10px;
+            }
+            
+            .names-panel {
+                width: 280px;
+            }
+            
+            button {
+                padding: 8px 16px;
+            }
+            
+            h3 {
+                font-size: 1.2em;
+            }
+        }
+
+        @media screen and (max-width: 480px) {
+            #resultPopup {
+                width: 80%;
+                padding: 15px;
+            }
+            
+            .popup-content {
+                font-size: 18px;
+            }
+        }
+
+        @media (hover: none) {
+            button:hover {
+                transform: none;
+            }
+        }
     </style>
 </head>
 <body>
