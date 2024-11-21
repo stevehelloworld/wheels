@@ -427,29 +427,24 @@
                 mouseX = rawX - centerX;
                 mouseY = rawY - centerY;
                 
-                // 獲取當前輪盤旋轉角度
+                // 獲取當前輪盤實際旋轉角度（從 transform 屬性獲取）
                 const currentRotation = getCurrentRotation();
-                const rotationRad = (currentRotation * Math.PI) / 180;
-                
-                // 計算旋轉後的實際座標
-                const adjustedX = mouseX * Math.cos(rotationRad) + mouseY * Math.sin(rotationRad);
-                const adjustedY = -mouseX * Math.sin(rotationRad) + mouseY * Math.cos(rotationRad);
                 
                 // 計算實際角度（考慮旋轉）
-                const angle = Math.atan2(adjustedY, adjustedX);
+                const angle = Math.atan2(mouseY, mouseX);
+                // 將弧度轉換為角度，並調整為 0-360 度範圍
                 let degrees = ((angle * 180 / Math.PI) + 360) % 360;
+                // 考慮輪盤旋轉的影響
+                degrees = (degrees - currentRotation + 360) % 360;
                 
-                // 計算到圓心的距離
-                const distance = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
-                
-                // 找出當前指向的區塊
-                const currentSlice = currentSliceAngles.find(slice => {
-                    if (slice.startAngle > slice.endAngle) {
-                        // 處理跨越0度的情況
-                        return degrees >= slice.startAngle || degrees < slice.endAngle;
-                    }
-                    return degrees >= slice.startAngle && degrees < slice.endAngle;
-                });
+                // 找出當前指向的區塊（使用原始的角度區間）
+                const sliceAngle = 360 / names.length;
+                const nameIndex = Math.floor(degrees / sliceAngle);
+                const currentSlice = {
+                    name: names[nameIndex],
+                    startAngle: nameIndex * sliceAngle,
+                    endAngle: (nameIndex + 1) * sliceAngle
+                };
                 
                 console.clear();
                 console.log('輪盤資訊：');
@@ -460,25 +455,26 @@
                 console.log('\n座標資訊：');
                 console.log(`原始位置: (${rawX.toFixed(2)}, ${rawY.toFixed(2)})`);
                 console.log(`相對圓心: (${mouseX.toFixed(2)}, ${mouseY.toFixed(2)})`);
-                console.log(`校正後座標: (${adjustedX.toFixed(2)}, ${adjustedY.toFixed(2)})`);
+                console.log(`校正後座標: (${rawX.toFixed(2)}, ${rawY.toFixed(2)})`);
                 console.log(`實際角度: ${degrees.toFixed(2)}°`);
-                console.log(`距離圓心: ${distance.toFixed(2)}px`);
+                console.log(`距離圓心: ${Math.sqrt(mouseX * mouseX + mouseY * mouseY).toFixed(2)}px`);
                 
                 // 判斷是否在輪盤區域內
                 const tolerance = 5;
-                const isInWheel = distance <= Math.min(centerX, centerY);
-                const isNearCenter = distance <= tolerance;
+                const isInWheel = Math.sqrt(mouseX * mouseX + mouseY * mouseY) <= Math.min(centerX, centerY);
+                const isNearCenter = Math.sqrt(mouseX * mouseX + mouseY * mouseY) <= tolerance;
                 
                 console.log('\n位置判定：');
                 console.log(`游標位置: ${isInWheel ? '在輪盤內' : '在輪盤外'}`);
                 console.log(`圓心位置: ${isNearCenter ? '在圓心附近' : '不在圓心'}`);
                 
-                // 只在���盤內且不在圓心時顯示當前指向的名字
-                if (isInWheel && !isNearCenter && currentSlice) {
+                // 只在輪盤內且不在圓心時顯示當前指向的名字
+                if (isInWheel && !isNearCenter) {
                     console.log('\n當前指向：');
                     console.log(`名稱: ${currentSlice.name}`);
                     console.log(`角度區間: ${currentSlice.startAngle.toFixed(2)}° - ${currentSlice.endAngle.toFixed(2)}°`);
                     console.log(`當前角度: ${degrees.toFixed(2)}°`);
+                    console.log(`區域編號: ${nameIndex + 1}/${names.length}`);
                 }
             });
 
