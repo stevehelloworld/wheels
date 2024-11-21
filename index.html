@@ -411,9 +411,75 @@
         const canvas = document.getElementById('wheel');
         if (canvas) {
             canvas.addEventListener('mousemove', (event) => {
+                // 獲取 canvas 的實際渲染尺寸
                 const rect = canvas.getBoundingClientRect();
-                mouseX = event.clientX - rect.left - canvas.width / 2;
-                mouseY = event.clientY - rect.top - canvas.height / 2;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                
+                // 考慮縮放比例計算實際座標
+                const rawX = (event.clientX - rect.left) * scaleX;
+                const rawY = (event.clientY - rect.top) * scaleY;
+                
+                // 相對於中心的座標
+                mouseX = rawX - centerX;
+                mouseY = rawY - centerY;
+                
+                // 獲取當前輪盤旋轉角度
+                const currentRotation = getCurrentRotation();
+                const rotationRad = (currentRotation * Math.PI) / 180;
+                
+                // 計算旋轉後的實際座標
+                const adjustedX = mouseX * Math.cos(rotationRad) + mouseY * Math.sin(rotationRad);
+                const adjustedY = -mouseX * Math.sin(rotationRad) + mouseY * Math.cos(rotationRad);
+                
+                // 計算實際角度（考慮旋轉）
+                const angle = Math.atan2(adjustedY, adjustedX);
+                let degrees = ((angle * 180 / Math.PI) + 360) % 360;
+                
+                // 計算到圓心的距離
+                const distance = Math.sqrt(mouseX * mouseX + mouseY * mouseY);
+                
+                // 找出當前指向的區塊
+                const currentSlice = currentSliceAngles.find(slice => {
+                    if (slice.startAngle > slice.endAngle) {
+                        // 處理跨越0度的情況
+                        return degrees >= slice.startAngle || degrees < slice.endAngle;
+                    }
+                    return degrees >= slice.startAngle && degrees < slice.endAngle;
+                });
+                
+                console.clear();
+                console.log('輪盤資訊：');
+                console.log(`Canvas 實際尺寸: ${rect.width}x${rect.height}`);
+                console.log(`縮放比例: ${scaleX.toFixed(2)}x, ${scaleY.toFixed(2)}y`);
+                console.log(`當前旋轉角度: ${currentRotation.toFixed(2)}°`);
+                
+                console.log('\n座標資訊：');
+                console.log(`原始位置: (${rawX.toFixed(2)}, ${rawY.toFixed(2)})`);
+                console.log(`相對圓心: (${mouseX.toFixed(2)}, ${mouseY.toFixed(2)})`);
+                console.log(`校正後座標: (${adjustedX.toFixed(2)}, ${adjustedY.toFixed(2)})`);
+                console.log(`實際角度: ${degrees.toFixed(2)}°`);
+                console.log(`距離圓心: ${distance.toFixed(2)}px`);
+                
+                // 判斷是否在輪盤區域內
+                const tolerance = 5;
+                const isInWheel = distance <= Math.min(centerX, centerY);
+                const isNearCenter = distance <= tolerance;
+                
+                console.log('\n位置判定：');
+                console.log(`游標位置: ${isInWheel ? '在輪盤內' : '在輪盤外'}`);
+                console.log(`圓心位置: ${isNearCenter ? '在圓心附近' : '不在圓心'}`);
+                
+                // 只在���盤內且不在圓心時顯示當前指向的名字
+                if (isInWheel && !isNearCenter && currentSlice) {
+                    console.log('\n當前指向：');
+                    console.log(`名稱: ${currentSlice.name}`);
+                    console.log(`角度區間: ${currentSlice.startAngle.toFixed(2)}° - ${currentSlice.endAngle.toFixed(2)}°`);
+                    console.log(`當前角度: ${degrees.toFixed(2)}°`);
+                }
             });
 
             canvas.width = 400;
@@ -511,8 +577,6 @@
             setTimeout(() => {
                 spinning = false;
                 accumulatedRotation = totalRotation;
-                
-                // 更新角度區間資料
                 updateSliceAngles();
                 
                 // 獲取獲獎者
@@ -558,8 +622,9 @@
             const sliceAngle = 360 / names.length;
             
             currentSliceAngles = names.map((name, index) => {
-                const startAngle = normalizeAngle(index * sliceAngle + normalizedRotation);
-                const endAngle = normalizeAngle((index + 1) * sliceAngle + normalizedRotation);
+                // 考慮指針位置（270度）進行角度計算
+                const startAngle = normalizeAngle((index * sliceAngle) + normalizedRotation);
+                const endAngle = normalizeAngle(((index + 1) * sliceAngle) + normalizedRotation);
                 return {
                     name,
                     startAngle,
@@ -567,10 +632,25 @@
                 };
             });
             
-            console.log('更新後的角度區間：');
-            currentSliceAngles.forEach(slice => {
-                console.log(`${slice.name}: ${slice.startAngle.toFixed(2)}° - ${slice.endAngle.toFixed(2)}°`);
+            console.log('當前各區域角度範圍：');
+            currentSliceAngles.forEach(({name, startAngle, endAngle}) => {
+                console.log(`${name}: ${startAngle.toFixed(2)}° - ${endAngle.toFixed(2)}°`);
             });
+        }
+
+        // 獲取當前旋轉角度的輔助函數
+        function getCurrentRotation() {
+            const wheel = document.getElementById('wheel');
+            if (!wheel) return 0;
+            
+            const transform = window.getComputedStyle(wheel).getPropertyValue('transform');
+            if (transform === 'none') return 0;
+            
+            const values = transform.split('(')[1].split(')')[0].split(',');
+            const a = values[0];
+            const b = values[1];
+            const angle = Math.round(Math.atan2(b, a) * (180/Math.PI));
+            return (angle < 0 ? angle + 360 : angle);
         }
     </script>
 </body>
