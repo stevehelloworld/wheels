@@ -408,42 +408,17 @@
             return winner.name;
         }
         
-        canvas.addEventListener('mousemove', (event) => {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = event.clientX - rect.left - canvas.width / 2;
-            mouseY = event.clientY - rect.top - canvas.height / 2;
-        });
-        
-        function getMouseAngle() {
-            const canvas = document.getElementById('wheel');
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            const dx = mouseX - centerX;
-            const dy = mouseY - centerY;
-            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            return normalizeAngle(angle);
-        }
-        
-        function getMouseTargetName() {
-            const angle = getMouseAngle();
-            const sliceAngle = 360 / names.length;
-            const targetIndex = Math.floor(angle / sliceAngle) % names.length;
-            return names[targetIndex];
-        }
-        
-        function startMonitoring() {
-            if (monitorInterval) {
-                clearInterval(monitorInterval);
-            }
-            
-            monitorInterval = setInterval(() => {
-                const targetName = getMouseTargetName();
-                const angle = Math.atan2(mouseY, mouseX) * 180 / Math.PI;
-                const normalizedAngle = (angle + 90 + 360) % 360;
-                const sliceAngle = 360 / names.length;
-                
-                console.log(`滑鼠角度: ${normalizedAngle.toFixed(2)}°, 區塊大小: ${sliceAngle.toFixed(2)}°, 指向: ${targetName}`);
-            }, 1000);
+        const canvas = document.getElementById('wheel');
+        if (canvas) {
+            canvas.addEventListener('mousemove', (event) => {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = event.clientX - rect.left - canvas.width / 2;
+                mouseY = event.clientY - rect.top - canvas.height / 2;
+            });
+
+            canvas.width = 400;
+            canvas.height = 400;
+            canvas.addEventListener('click', spinWheel);
         }
         
         let nameAngles = [];
@@ -555,10 +530,6 @@
         function closePopup() {
             document.getElementById('resultPopup').style.display = 'none';
         }
-        
-        canvas.width = 400;
-        canvas.height = 400;
-        canvas.addEventListener('click', spinWheel);
         
         function initializeWheel() {
             const wheel = document.getElementById('wheel');
