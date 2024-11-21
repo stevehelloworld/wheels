@@ -276,6 +276,22 @@
         // 新增一個變數來儲存最新的角度區間資料
         let currentSliceAngles = [];
         
+        // 在全局變量區域添加
+        let isShiftPressed = false;
+        
+        // 添加鍵盤事件監聽
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Shift') {
+                isShiftPressed = true;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            if (event.key === 'Shift') {
+                isShiftPressed = false;
+            }
+        });
+        
         function drawWheel() {
             const canvas = document.getElementById('wheel');
             if (!canvas) {
@@ -475,6 +491,12 @@
                     console.log(`角度區間: ${currentSlice.startAngle.toFixed(2)}° - ${currentSlice.endAngle.toFixed(2)}°`);
                     console.log(`當前角度: ${degrees.toFixed(2)}°`);
                     console.log(`區域編號: ${nameIndex + 1}/${names.length}`);
+                    
+                    // 顯示作弊模式狀態
+                    if (isShiftPressed) {
+                        console.log('\n作弊模式已啟動！');
+                        console.log('點擊輪盤將旋轉至當前指向位置');
+                    }
                 }
             });
 
@@ -514,8 +536,8 @@
             // 需要旋轉到的角度 = 目標角度 - 270度（指針位置）
             const targetRotation = normalizeAngle(targetCenterAngle - 270);
             
-            // 基本旋轉圈數（5-7圈）
-            const baseRotation = (5 + Math.random() * 2) * 360;
+            // 基本旋轉圈數（5圈）
+            const baseRotation = 5 * 360;
             
             return baseRotation + targetRotation;
         }
@@ -537,52 +559,41 @@
             });
         }
         
-        function spinWheel(event, cheatTarget = null) {
+        function spinWheel(event) {
             if (spinning) return;
             
             spinning = true;
             const wheel = document.getElementById('wheel');
             
-            // 計算基本旋轉圈數（5-7圈）
-            const baseRotation = (5 + Math.random() * 2) * 360;
+            // 基本旋轉圈數（5圈）
+            const baseRotation = 5 * 360;
+            let targetRotation = Math.random() * 360; // 預設隨機角度
             
-            let newRotation;
-            if (cheatTarget) {
-                // 作弊模式
-                const sliceAngle = 360 / names.length;
-                const targetIndex = names.indexOf(cheatTarget);
-                if (targetIndex !== -1) {
-                    // 計算目標角度（考慮指針在270度）
-                    const targetCenterAngle = targetIndex * sliceAngle;
-                    const targetRotation = normalizeAngle(targetCenterAngle - 270);
-                    newRotation = baseRotation + targetRotation;
-                } else {
-                    newRotation = baseRotation + Math.random() * 360;
-                }
-            } else {
-                newRotation = baseRotation + Math.random() * 360;
+            // 如果按住 Shift 鍵，使用當前游標位置作為目標
+            if (isShiftPressed) {
+                const currentRotation = getCurrentRotation();
+                const mouseAngle = Math.atan2(mouseY, mouseX);
+                let degrees = ((mouseAngle * 180 / Math.PI) + 360) % 360;
+                
+                // 計算需要旋轉的角度，使游標位置對準指針（270度）
+                targetRotation = normalizeAngle(270 - degrees);
             }
             
             // 計算總旋轉角度
-            const totalRotation = accumulatedRotation + newRotation;
+            const totalRotation = accumulatedRotation + baseRotation + targetRotation;
             
             // 設置旋轉動畫
             wheel.style.transform = `rotate(${totalRotation}deg)`;
             
-            // 等待動畫完成
             setTimeout(() => {
                 spinning = false;
                 accumulatedRotation = totalRotation;
                 updateSliceAngles();
                 
-                // 獲取獲獎者
                 const winner = getCurrentWinner();
-                
-                // 顯示結果
                 document.getElementById('winner').textContent = winner;
                 document.getElementById('resultPopup').style.display = 'block';
                 
-                // 更新並顯示狀態
                 updateWheelState();
             }, 4000);
         }
